@@ -4,7 +4,7 @@ Pinecone integration for RAG chatbot:
 - Upsert chunk embeddings with metadata
 - Query embeddings
 """
-#pcsk_CzkCj_5dbhiRMottXG7QAQ7Knk2Hx5ojc2CAC2izfuGG3iHZN4ijxp764mogS5J2UcSYL
+
 import os
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
@@ -12,9 +12,8 @@ import numpy as np
 # Initialize Pinecone client
 pc = Pinecone(api_key=os.environ.get("PINECONE_API"))
 
- 
+
 # 1. Create / connect to index
- 
 def create_index(index_name="competitor-bot", dimension=384, region="us-east-1"):
     """
     Creates a Pinecone dense index if it does not exist.
@@ -34,8 +33,7 @@ def create_index(index_name="competitor-bot", dimension=384, region="us-east-1")
     return pc.Index(index_name)
 
  
-# 2. Upsert chunks into Pinecone
- 
+# 2. Upsert chunks into Pinecone 
 def upsert_chunks(index, chunks, embeddings):
     """
     Upserts a list of chunks with embeddings into Pinecone.
@@ -69,7 +67,6 @@ def upsert_chunks(index, chunks, embeddings):
 
  
 # 3. Query index
- 
 def query_index(index, query_embedding, top_k=5, category=None):
     """
     Query Pinecone index using a vector embedding.
