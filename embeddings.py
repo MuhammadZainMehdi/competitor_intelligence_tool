@@ -2,51 +2,38 @@ import re
 from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
+ 
 # Initialize tokenizer and embedder
 tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")  # For later use
+embedder = SentenceTransformer("all-MiniLM-L6-v2")  # Output dimension 384
 
-# Token-Based Chunking
-def chunk_text(text, max_tokens=192, overlap=28):
-    tokens = tokenizer.encode(text, add_special_tokens=False)
-    chunks = []
+ 
+# Category Detection
+def detect_category(text: str) -> str:
+    """
+    Detect the category of a chunk of text.
+    Currently uses keyword-based rules.
+    
+    Categories: pricing, features, security, general
+    """
+    text_lower = text.lower()
 
-    step = max_tokens - overlap
+    if any(k in text_lower for k in ["price", "pricing", "$", "per month"]):
+        return "pricing"
+    if any(k in text_lower for k in ["feature", "includes", "capabilities", "supports"]):
+        return "features"
+    if any(k in text_lower for k in ["security", "compliance", "gdpr", "pci"]):
+        return "security"
 
-    for i in range(0, len(tokens), step):
-        chunk_tokens = tokens[i:i + max_tokens]
-        chunk = tokenizer.decode(chunk_tokens)
-        chunks.append(chunk)
-
-    return chunks
-
-
-# Chunk Validation
-def is_valid_chunk(text, min_chars=40):
-    text = text.strip()
-
-    if not text:
-        return False
-
-    # Pure markdown headers
-    if re.fullmatch(r"#+", text):
-        return False
-
-    # Very short / meaningless chunks
-    if len(text) < min_chars:
-        return False
-
-    return True
+    return "general"
 
  
 # Markdown Section Splitter
-def split_markdown_sections(markdown: str):
+def split_markdown_sections(markdown: str) -> list[dict]:
     """
-    Splits markdown into sections based on headers.
-    Returns list of:
-    { title: str, content: str }
+    Split Firecrawl Markdown into sections based on headers.
+    Returns a list of dicts: {title: str, content: str}
     """
-
     sections = []
     current_title = "General"
     current_content = []
@@ -72,26 +59,49 @@ def split_markdown_sections(markdown: str):
 
     return sections
 
+ 
+# Token-Based Chunking
+def chunk_text(text: str, max_tokens: int = 192, overlap: int = 28) -> list[str]:
+    """
+    Split a long text into token-based chunks with overlap using HuggingFace tokenizer.
+    """
+    tokens = tokenizer.encode(text, add_special_tokens=False)
+    chunks = []
 
-# Category Detection
-def detect_category(text: str):
-    text_lower = text.lower()
+    step = max_tokens - overlap
+    for i in range(0, len(tokens), step):
+        chunk_tokens = tokens[i:i + max_tokens]
+        chunk = tokenizer.decode(chunk_tokens).strip()
+        chunks.append(chunk)
 
-    if any(k in text_lower for k in ["price", "pricing", "$", "per month"]):
-        return "pricing"
-    if any(k in text_lower for k in ["feature", "includes", "capabilities"]):
-        return "features"
-    if any(k in text_lower for k in ["security", "compliance", "gdpr"]):
-        return "security"
-    if any(k in text_lower for k in ["features", "capabilities", "includes", "supports"]):
-        return "features"
+    return chunks
 
+ 
+# Chunk Validation
+def is_valid_chunk(text: str, min_chars: int = 40) -> bool:
+    """
+    Determines if a chunk is valid for embedding.
+    Filters out:
+    - Empty strings
+    - Pure markdown headers
+    - Very short content
+    """
+    text = text.strip()
+    if not text:
+        return False
+    if re.fullmatch(r"#+", text):
+        return False
+    if len(text) < min_chars:
+        return False
+    return True
 
-    return "general"
-
-
+ 
 # Section-Aware Chunk Builder
-def build_chunks(markdown: str, company: str, source_url: str):
+def build_chunks(markdown: str, company: str, source_url: str) -> list[dict]:
+    """
+    Convert Firecrawl markdown into tokenized, section-aware, categorized chunks.
+    Each chunk includes metadata for company, category, section, and source_url.
+    """
     sections = split_markdown_sections(markdown)
     final_chunks = []
 
@@ -120,9 +130,39 @@ def build_chunks(markdown: str, company: str, source_url: str):
 
     return final_chunks
 
+ 
+# Embedding Functions
+ 
+def prepare_for_embedding(chunks: list[dict]) -> tuple[list[str], list[dict]]:
+    """
+    Prepares text and metadata from chunks for embedding.
+    """
+    texts = [c["text"] for c in chunks]
+    metadatas = [c["metadata"] for c in chunks]
+    return texts, metadatas
+
+def generate_embeddings(texts: list[str]) -> list[list[float]]:
+    """
+    Generates embeddings for a list of texts using SentenceTransformer.
+    """
+    embeddings = embedder.encode(
+        texts,
+        batch_size=32,
+        show_progress_bar=True
+    )
+    return embeddings
+
+def embed_chunks(chunks: list[dict]) -> tuple[list[list[float]], list[dict]]:
+    """
+    Full embedding pipeline: prepares texts, generates embeddings, returns embeddings + metadata.
+    """
+    texts, metadatas = prepare_for_embedding(chunks)
+    embeddings = generate_embeddings(texts)
+    return embeddings, metadatas
 
  
-# Example usage
+# Test Case
+ 
 if __name__ == "__main__":
     TEST_MARKDOWN = """
 # Stripe Pricing
@@ -147,16 +187,17 @@ Stripe is PCI-DSS compliant and supports GDPR.
     company = "Stripe"
     source_url = "https://stripe.com/pricing"
 
-    chunks = build_chunks(
-        markdown=TEST_MARKDOWN,
-        company=company,
-        source_url=source_url
-    )
-
+    # Build chunks
+    chunks = build_chunks(TEST_MARKDOWN, company, source_url)
     print(f"Total chunks: {len(chunks)}\n")
 
-    for i, chunk in enumerate(chunks, start=1):
+    for i, c in enumerate(chunks, 1):
         print(f"Chunk {i}:")
-        print(chunk["text"])
-        print("Metadata:", chunk["metadata"])
+        print(c["text"])
+        print("Metadata:", c["metadata"])
         print("-" * 40)
+
+    # Embed chunks
+    embeddings, metadatas = embed_chunks(chunks)
+    print(f"\nGenerated {len(embeddings)} embeddings, dimension: {len(embeddings[0])}")
+
