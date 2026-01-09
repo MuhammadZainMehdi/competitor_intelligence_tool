@@ -16,51 +16,24 @@ def get_firecrawl():
 def search_company_url(company_name: str) -> str:
     """Finds the official URL for a company using Firecrawl search."""
     print(f"Searching for URL for: {company_name}")
-    try:
-        app = get_firecrawl()
-        results = app.search(query=company_name, limit=1)
-        
-        if results and hasattr(results, 'web') and results.web:
-            return results.web[0].url
-                 
-    except Exception as e:
-        print(f"Search failed for {company_name}: {e}")
+    app = get_firecrawl()
+    results = app.search(query=company_name, limit=1)
+    
+    if results and hasattr(results, 'web') and results.web:
+        return results.web[0].url
     return None
 
 # Standalone function for crawling
 def crawl_url(url: str) -> str:
     """Crawls a URL using Firecrawl and returns the markdown content."""
     print(f"Crawling URL with Firecrawl: {url}")
-    try:
-        app = get_firecrawl()
-        result = app.scrape(url=url, formats=['markdown'])
+    app = get_firecrawl()
+    result = app.scrape(url=url, formats=['markdown'])
+    
+    if not result:
+        return None
         
-        if not result:
-            return None
-            
-        # Handle dict response
-        if isinstance(result, dict):
-            # Check for data.markdown or just markdown
-            if 'data' in result and isinstance(result['data'], dict):
-                return result['data'].get('markdown')
-            return result.get('markdown')
-            
-        # Handle object response
-        if hasattr(result, 'data'):
-            data = result.data
-            if hasattr(data, 'markdown'):
-                return data.markdown
-            if isinstance(data, dict):
-                return data.get('markdown')
-                
-        # Last resort object attr
-        if hasattr(result, 'markdown'):
-            return result.markdown
-            
-        return None
-    except Exception as e:
-        print(f"Firecrawl error: {e}")
-        return None
+    return result.markdown
 
 if __name__ == "__main__":
     # Functional Test
