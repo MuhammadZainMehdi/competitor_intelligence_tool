@@ -8,9 +8,13 @@ Pinecone integration for RAG chatbot:
 import os
 from pinecone import Pinecone, ServerlessSpec
 import numpy as np
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Initialize Pinecone client
-pc = Pinecone(api_key=os.environ.get("PINECONE_API"))
+pc = Pinecone(api_key=os.getenv("PINECONE_API"))
 
 
 # 1. Create / connect to index
