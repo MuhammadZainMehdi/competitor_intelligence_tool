@@ -1,2 +1,10 @@
-transformers==4.46.3
-sentence-transformers==3.3.1
+transformers
+sentence-transformers
+streamlit
+google-genai
+chromadb
+python-dotenv
+firecrawl-py
+pinecone
+groq
+pydantic
