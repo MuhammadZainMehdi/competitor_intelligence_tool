@@ -15,7 +15,7 @@ load_dotenv()
 
 # Initialize models
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
-groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 def generate_comparison_response(query: str, context_a: list, context_b: list, company_a: str, company_b: str) -> str:

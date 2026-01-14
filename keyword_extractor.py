@@ -32,7 +32,7 @@ def extract_keywords(prompt: str) -> CompanyKeywords:
     Returns:
         CompanyKeywords object with company_a and company_b search terms
     """
-    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     
     system_prompt = """You are a keyword extraction specialist. Given a user's comparison query, 
 extract the two companies or products being compared. Return search-optimized keywords that would 
